@@ -68,8 +68,23 @@ exports.createStore = async (req, res) => {
 }
 
 exports.getStores = async (req, res) => {
-  const stores = await Store.find();
-  res.render('stores', { title: 'Stores', stores });
+  const page = Number(req.params.page || 1);
+  const limit = 4;
+  const skip = (limit * page) - limit;
+  const storesPromise = Store
+    .find()
+    .skip(skip)
+    .limit(limit)
+    .sort({ created: 'desc'});
+  const countPromise = Store.count();
+  const [ stores, count ] = await Promise.all([storesPromise, countPromise]);
+  const pages = Math.ceil(count / limit);
+  if (!stores.length && skip) {
+    req.flash('info', `Hey! You asked for a page ${page}. But that doesn't exists. So I put you on page ${pages}`);
+    res.redirect(`/stores/page/${pages}`);
+    return ;
+  }
+  res.render('stores', { title: 'Stores', stores, count, page, pages });
 }
 
 exports.updateStore = async (req, res) => {
